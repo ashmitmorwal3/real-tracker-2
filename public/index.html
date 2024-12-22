@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Device Tracker</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    #map {
+      height: 100vh;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    const map = L.map('map').setView([0, 0], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    const socket = io();
+
+    // Add markers on receiving location updates
+    socket.on('locationUpdate', (device) => {
+      const marker = L.marker([device.latitude, device.longitude]).addTo(map);
+      marker.bindPopup(`Device ID: ${device.deviceId}`).openPopup();
+    });
+
+    // Send your location to the server
+    function sendLocation() {
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const deviceId = "yourUniqueDeviceID"; // Replace with a unique ID for the device
+            const { latitude, longitude } = position.coords;
+
+            fetch('/devices', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ deviceId, latitude, longitude }),
+            })
+              .then((response) => response.json())
+              .then((data) => {
+                console.log('Location sent:', data);
+              })
+              .catch((error) => {
+                console.error('Error sending location:', error);
+              });
+          },
+          (error) => {
+            console.error('Error getting location:', error);
+          }
+        );
+      } else {
+        alert('Geolocation is not supported by your browser.');
+      }
+    }
+
+    // Automatically send location every 10 seconds
+    setInterval(sendLocation, 10000);
+
+    // Send location on page load
+    sendLocation();
+  </script>
+</body>
+</html>
